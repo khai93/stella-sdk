@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from "axios"
+import sleep from "./utils/sleep"
 
 export type SubmissionInput = {
     token?: string,
@@ -39,16 +40,35 @@ export class StellaClient {
           });
     }
 
+    // Creates a submission without watiting for the submission to be executed
     async createSubmission(input: SubmissionInput): Promise<SubmissionOutput> {
         const resp = await this.#axiosInstance.post("/v1/submissions/create", input);
         return resp.data;
     }
 
+    // Creates a submission and waits until the submission has been executed by stella
+    async executeSubmission(input: SubmissionInput): Promise<SubmissionOutput> {
+        const resp = await this.createSubmission(input);
+
+        // If it has not been executed and
+        // the submission isn't timed out
+        // Call the function recursively
+        if (!resp.executed && resp.exit_code != 124) {
+            await sleep(500);
+            return this.executeSubmission(input);
+        }
+
+        return resp;
+    }
+
+
+    // Gets a submission by it's token
     async getSubmission(token: string): Promise<SubmissionOutput> {
         const resp = await this.#axiosInstance.get("/v1/submissions/" + token);
         return resp.data;
     }
 
+    // Fetches a list of languages installed in current running stella
     async getLanguages(): Promise<Langauge[]> {
         const resp = await this.#axiosInstance.get("/v1/languages");
         return resp.data;
